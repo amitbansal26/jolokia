@@ -58,7 +58,9 @@ public class SpringListHandler extends SpringCommandHandler<JolokiaListRequest> 
         // TODO: Fix for FactoryBeans
         for (String beanName : appCtx.getBeanDefinitionNames()) {
             BeanDefinition bd = bdFactory.getMergedBeanDefinition(beanName);
-            ret.put("name=" + beanName, getSpringBeanInfo(bd));
+            if(!bd.isAbstract()) {
+                ret.put("name=" + beanName, getSpringBeanInfo(bd));
+            }
         }
         return ret;
     }
