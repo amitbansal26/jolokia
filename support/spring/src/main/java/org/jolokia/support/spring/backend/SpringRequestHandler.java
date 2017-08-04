@@ -56,7 +56,8 @@ public class SpringRequestHandler extends AbstractRequestHandler
     public void init(JolokiaContext pJolokiaContext) {
         for (SpringCommandHandler handler : new SpringCommandHandler[] {
                 new SpringReadHandler(appContext, pJolokiaContext),
-                new SpringListHandler(appContext, pJolokiaContext)
+                new SpringListHandler(appContext, pJolokiaContext),
+                new SpringWriteHandler(appContext, pJolokiaContext)
         }) {
             commandHandlerMap.put(handler.getType(), handler);
         }
