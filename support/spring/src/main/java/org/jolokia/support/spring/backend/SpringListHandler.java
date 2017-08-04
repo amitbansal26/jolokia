@@ -4,10 +4,12 @@ import java.beans.PropertyDescriptor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.management.AttributeNotFoundException;
 import javax.management.InstanceNotFoundException;
+import javax.management.ObjectName;
 
 import org.jolokia.server.core.request.JolokiaListRequest;
 import org.jolokia.server.core.service.api.JolokiaContext;
@@ -44,10 +46,30 @@ public class SpringListHandler extends SpringCommandHandler<JolokiaListRequest> 
         if (domain == null || domain.length() == 0) {
             domain = "default";
         }
-        JSONObject ret = new JSONObject();
-        JSONObject beans = getAllSpringBeans(getAsConfigurableApplicationContext());
-        ret.put(SpringRequestHandler.PROVIDER + "@" + domain,beans);
-        return ret;
+        String providerAndDomain = SpringRequestHandler.PROVIDER + "@" + domain;
+        final BeanDefinition requestedBean=beanFromRequest(pJmxReq, providerAndDomain);
+        if(requestedBean != null) {
+            return getSpringBeanInfo(requestedBean);
+        }
+        else {
+            JSONObject ret = new JSONObject();
+            JSONObject beans = getAllSpringBeans(getAsConfigurableApplicationContext());
+            ret.put(providerAndDomain, beans);
+            return ret;
+        }
+    }
+
+    private BeanDefinition beanFromRequest(JolokiaListRequest pJmxReq, String providerAndDomain) {
+        List<String> pathParts = pJmxReq.getPathParts();
+        if(pathParts != null && pathParts.size() == 2 && providerAndDomain.equals(
+                pathParts.get(0))) {
+           final String beanAndName = pathParts.get(1);
+           if(beanAndName.startsWith("name=")) {
+               final String beanName=beanAndName.substring(5);
+               return getAsConfigurableApplicationContext().getBeanFactory().getMergedBeanDefinition(beanName);
+           }
+        }
+        return null;
     }
 
     // ====================================================================================
@@ -117,7 +139,7 @@ public class SpringListHandler extends SpringCommandHandler<JolokiaListRequest> 
             Class<?> propType = propDesc.getPropertyType();
             addIfNotNull(aMap, TYPE, propType != null ? classToString(propType) : null);
             addIfNotNull(aMap, DESCRIPTION, propDesc.getShortDescription());
-            aMap.put(READ_WRITE, propDesc.getWriteMethod() != null && isLiteralType(propType));
+            aMap.put(READ_WRITE, propDesc.getWriteMethod() != null);
             ret.put(propDesc.getName(),aMap);
         }
         return ret;
@@ -168,5 +190,16 @@ public class SpringListHandler extends SpringCommandHandler<JolokiaListRequest> 
         } else {
             return pClass.getCanonicalName();
         }
+    }
+
+    protected String findBeanName(final ObjectName oName) {
+        String beanName = oName.getKeyProperty("name");
+        if (beanName == null) {
+            beanName = oName.getKeyProperty("id");
+        }
+        if (beanName == null) {
+            throw new IllegalArgumentException("No bean name given with property 'name' when requesting " + oName);
+        }
+        return beanName;
     }
 }
