@@ -25,12 +25,19 @@ public class SpringWriteHandler extends SpringAttributeRequestHandler<JolokiaWri
         super(pAppContext, pContext, RequestType.WRITE);
     }
 
+    protected void checkForRestriction(JolokiaWriteRequest pRequest) {
+        if(!this.getJolokiaContext().isAttributeWriteAllowed(pRequest.getObjectName(), pRequest.getAttributeName())) {
+            throw new SecurityException("Writing attribute " + pRequest.getAttributeName() + " forbidden for Spring bean " + pRequest.getObjectNameAsString());
+        }
+    }
+
     public Object handleRequest(JolokiaWriteRequest pJmxReq, Object pPreviousResult)
             throws InstanceNotFoundException, AttributeNotFoundException {
+        checkForRestriction(pJmxReq);
         final String beanName = findBeanName(pJmxReq.getObjectName());
         try {
             final Object bean = getApplicationContext().getBean(beanName);
-            final Object oldValue = readAttribute(pJmxReq.getObjectName(), beanName, bean, pJmxReq.getAttributeName());
+            final Object oldValue = readAttribute(pJmxReq.getObjectName(), beanName, bean, pJmxReq.getAttributeName(), pJmxReq);
             writeAttribute(pJmxReq.getObjectName(), beanName, bean, pJmxReq.getAttributeName(), pJmxReq.getValue());
             return oldValue;
         } catch (NoSuchBeanDefinitionException exp) {
