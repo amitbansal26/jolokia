@@ -1,7 +1,5 @@
 package org.jolokia.support.spring.backend;
 
-import java.beans.PropertyDescriptor;
-import java.util.LinkedList;
 import java.util.List;
 
 import javax.management.AttributeNotFoundException;
@@ -12,10 +10,9 @@ import org.jolokia.server.core.request.JolokiaReadRequest;
 import org.jolokia.server.core.service.api.JolokiaContext;
 import org.jolokia.server.core.util.RequestType;
 import org.json.simple.JSONObject;
-import org.springframework.beans.BeanUtils;
+import org.springframework.aop.framework.Advised;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
-import org.springframework.util.ReflectionUtils;
 
 /**
  * @author roland
@@ -50,9 +47,16 @@ public class SpringReadHandler extends SpringAttributeRequestHandler<JolokiaRead
 
     @SuppressWarnings("unchecked")
     private Object readAllAttributes(JolokiaReadRequest pJmxReq, final ObjectName oName, final String beanName, final ApplicationContext ctx,
-            final Object bean) {
-            final Class<?> clazz = bean.getClass();
+            Object bean) {
+            Class<?> clazz = bean.getClass();
             List<String> attributeNames = pJmxReq.getAttributeNames();
+            if(bean instanceof Advised) {
+                try {
+                    bean = ((Advised)bean).getTargetSource().getTarget();
+                    clazz = bean.getClass();
+                } catch (Exception ignore) {
+                }
+            }
             if(attributeNames == null || attributeNames.isEmpty()) {
                 attributeNames=introspectAttributeNamesFromClass(clazz);
             }
@@ -66,14 +70,5 @@ public class SpringReadHandler extends SpringAttributeRequestHandler<JolokiaRead
             return result;
     }
 
-    private List<String> introspectAttributeNamesFromClass(Class<?> clazz) {
-        List<String> attributeNames=new LinkedList<String>();
-        // use bean introspector in the same way as for list requests
-        for (PropertyDescriptor descriptor : BeanUtils.getPropertyDescriptors(clazz)) {
-            if(ReflectionUtils.findField(clazz, descriptor.getName())!=null) {
-                attributeNames.add(descriptor.getName());
-            }
-        }
-        return attributeNames;
-    }
+
 }
